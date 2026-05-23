@@ -1,0 +1,48 @@
+# === Quarkus & Build Outputs ===
+target/
+build/
+.kotlin/
+.quarkus/
+*.log
+
+# Keep nested build outputs if required by specific plugins
+!**/src/main/**/target/
+!**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# === Maven Wrapper (Team-Friendly) ===
+# We track the .jar and scripts so the team can build without installing Maven globally
+.mvn/wrapper/maven-wrapper.properties
+!**/wrapper/maven-wrapper.jar
+!mvnw
+!mvnw.cmd
+
+# === IntelliJ IDEA ===
+# Ignore the entire folder to stop merge conflicts on personal developer workspace settings
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Whitelist shared run configurations so the whole team gets the same 'quarkus:dev' buttons
+!.idea/runConfigurations/
+
+# === Other IDE Clutter (Safe to keep for multi-IDE teams) ===
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+.vscode/
+
+# === Operating Systems ===
+.DS_Store
+Thumbs.db
