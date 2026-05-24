@@ -1,0 +1,108 @@
+full identity pipeline:
+
+Incoming JWT
+    ↓
+JWTValidator
+    ↓
+JWTAugmentor
+    ↓
+Quarkus JWT parsing
+    ↓
+CustomIdentityAugmentor
+    ↓
+SubjectFactory
+    ↓
+SecurityIdentity (with Subject)
+    ↓
+WebSocketIdentityValidator
+    ↓
+AlertSocket / MonitorSocket
+
+
+=====================================
+
+JWT → JWTValidator → JWTAugmentor → IdentityParser → CustomIdentityAugmentor → Subject
+
+
+
+=================================================================
+
+Client
+  │
+  │  1. HTTP Upgrade Request
+  ▼
+──────────────────────────────────────────────────────────────
+ WebSocketValidationFilter  (BEFORE WebSocket is accepted)
+──────────────────────────────────────────────────────────────
+  - Validates:
+      • Path structure (/ws/v1/alerts)
+      • Required headers (Authorization, Sec-WebSocket-Key, etc.)
+      • JWT presence + signature
+      • Rate limiting (per IP)
+      • Tenant/workplace/group consistency (if present)
+      • Rejects invalid upgrade requests BEFORE AlertSocket sees them
+  - Logs:
+      • 🔓 validation failed
+      • 🛡️ validation passed
+  - On failure:
+      → connection.close(CloseReason)
+      → AlertSocket is NEVER invoked
+  - On success:
+      → WebSocket upgrade proceeds
+      → AlertSocket.onOpen is called
+──────────────────────────────────────────────────────────────
+
+  ▼
+AlertSocket (transport only)
+  - @OnOpen
+  - @OnTextMessage
+  - @OnClose
+  - @OnError
+  - Parses raw JSON → IncomingEnvelope
+  - Logs MESSAGE_RECEIVED
+  - Delegates ALL messages to MessageRouter
+  - No business logic
+
+  │
+  ▼
+MessageRouter (routing)
+  - Validates message sequence (CONNECT must be first)
+  - Builds ConnectionContext from connection.userData()
+  - switch(messageType):
+        CONNECT      → ConnectHandler
+        ALERT_START  → AlertStartHandler
+        ALERT_STOP   → AlertStopHandler
+        else         → ProtocolException
+
+  │
+  ├── CONNECT → ConnectHandler
+  │       - Validates identity vs CONNECT payload
+  │       - Binds context (tenant, workplace, group, device)
+  │       - Registers device in GroupRegistry
+  │       - Sends DEVICE_CONNECTED ACK
+  │       - Replays active alerts
+  │       - Notifies monitors (DEVICE_CONNECTED)
+  │
+  ├── ALERT_START → AlertStartHandler
+  │       - Typed AlertStartMessage
+  │       - Checks existing active alarm
+  │       - Creates DeviceMessage(ALERT_START)
+  │       - Stores in GroupState.activeAlarms
+  │       - Broadcasts to group + observers
+  │       - Sends ACK via AlertAckService
+  │
+  └── ALERT_STOP → AlertStopHandler
+          - Typed AlertStopMessage
+          - Removes from GroupState.activeAlarms
+          - Creates DeviceMessage(ALERT_STOP)
+          - Broadcasts to group + observers
+          - Sends ACK via AlertAckService
+
+GroupRegistry / GroupState
+  - Tracks connectedDeviceIds
+  - Tracks activeAlarms
+  - Broadcasts to group and observers
+
+ConnectionEvents
+  - onDeviceConnected / onDeviceDisconnected
+  - Used by ConnectHandler and AlertSocket.onClose

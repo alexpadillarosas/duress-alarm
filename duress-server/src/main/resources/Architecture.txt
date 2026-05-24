@@ -1,0 +1,116 @@
+Client
+  │
+  │  1. HTTP Upgrade Request
+  ▼
+──────────────────────────────────────────────────────────────
+ WebSocketValidationFilter  (PRE-WEBSOCKET GATEKEEPER)
+──────────────────────────────────────────────────────────────
+  Responsibilities:
+    • Validate Authorization header exists
+    • Validate JWT signature + expiry
+    • Validate tenant/workplace/group claims (if present)
+    • Validate path (/ws/v1/alerts)
+    • Validate rate limits (per IP or per device)
+    • Validate Sec-WebSocket-Key and handshake headers
+    • Reject malformed or unauthorized upgrade requests
+
+  If validation fails:
+    → connection.close(CloseReason)
+    → AlertSocket is NEVER invoked
+
+  If validation succeeds:
+    → WebSocket upgrade proceeds
+    → AlertSocket.onOpen() is called
+──────────────────────────────────────────────────────────────
+
+  ▼
+AlertSocket  (TRANSPORT LAYER ONLY)
+──────────────────────────────────────────────────────────────
+  Responsibilities:
+    • @OnOpen — logs connection, checks shutdown flag
+    • @OnTextMessage — parses raw JSON → IncomingEnvelope
+    • @OnTextMessage — delegates ALL messages to MessageRouter
+    • @OnClose — handles disconnect logic (alert cleanup, broadcasts)
+    • @OnError — handles JSON errors, internal errors
+    • @OnPong — heartbeat logging
+    • No business logic
+    • No CONNECT logic
+    • No alert logic
+
+  Output:
+    IncomingEnvelope(messageType, payload, correlationId)
+──────────────────────────────────────────────────────────────
+
+  ▼
+MessageRouter  (ROUTING LAYER)
+──────────────────────────────────────────────────────────────
+  Responsibilities:
+    • Validate message sequence (CONNECT must be first)
+    • Build ConnectionContext from connection.userData()
+    • Deserialize payload into typed DTOs:
+         CONNECT      → ConnectMessage
+         ALERT_START  → AlertStartMessage
+         ALERT_STOP   → AlertStopMessage
+    • Route to correct handler:
+         CONNECT      → ConnectHandler
+         ALERT_START  → AlertStartHandler
+         ALERT_STOP   → AlertStopHandler
+    • Throw ProtocolException for unknown types
+
+  Output:
+    Uni<Void> from handler
+──────────────────────────────────────────────────────────────
+
+  ▼
+Handlers (BUSINESS LOGIC)
+──────────────────────────────────────────────────────────────
+
+ ConnectHandler
+   • Validates identity vs CONNECT payload
+   • Binds context (tenantId, workplaceId, groupId, deviceId)
+   • Registers device in GroupRegistry
+   • Sends DEVICE_CONNECTED ACK
+   • Replays active alerts sequentially
+   • Notifies monitors (DEVICE_CONNECTED)
+
+ AlertStartHandler
+   • Typed AlertStartMessage
+   • Ensures no existing active alert
+   • Creates DeviceMessage(ALERT_START)
+   • Stores in GroupState.activeAlarms
+   • Broadcasts to group + observers
+   • Sends ACK via AlertAckService
+
+ AlertStopHandler
+   • Typed AlertStopMessage
+   • Removes from GroupState.activeAlarms
+   • Creates DeviceMessage(ALERT_STOP)
+   • Broadcasts to group + observers
+   • Sends ACK via AlertAckService
+──────────────────────────────────────────────────────────────
+
+  ▼
+GroupRegistry / GroupState  (STATE + BROADCASTING)
+──────────────────────────────────────────────────────────────
+  Responsibilities:
+    • Track connectedDeviceIds
+    • Track activeAlarms
+    • Broadcast to group
+    • Broadcast to observers
+    • Register/unregister devices
+
+  Used by:
+    • ConnectHandler
+    • AlertStartHandler
+    • AlertStopHandler
+    • AlertSocket.onClose
+──────────────────────────────────────────────────────────────
+
+  ▼
+ConnectionEvents  (SIDE-EFFECTS)
+──────────────────────────────────────────────────────────────
+  Responsibilities:
+    • onDeviceConnected
+    • onDeviceDisconnected
+    • Used by ConnectHandler + AlertSocket.onClose
+──────────────────────────────────────────────────────────────

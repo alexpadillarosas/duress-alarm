@@ -1,0 +1,341 @@
+------------------------------------------------------------
+-- EXTENSIONS (Not needed in SQLite)
+------------------------------------------------------------
+-- uuid-ossp → We'll use TEXT for UUIDs (generate in application)
+-- citext   → Use TEXT COLLATE NOCASE
+
+------------------------------------------------------------
+-- SAFETY ALERT SYSTEM - SQLITE SCHEMA (Revised)
+-- Multi-tenant Duress / Panic Alarm System
+------------------------------------------------------------
+
+------------------------------------------------------------
+-- TENANTS
+------------------------------------------------------------
+CREATE TABLE tenants (
+                         id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                         uuid        TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                         name        TEXT NOT NULL,
+                         created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+------------------------------------------------------------
+-- LICENSE PLANS
+------------------------------------------------------------
+CREATE TABLE license_plans (
+                               id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+                               uuid                   TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                               name                   TEXT NOT NULL UNIQUE,
+                               description            TEXT,
+                               default_max_devices    INTEGER,
+                               default_max_monitors   INTEGER,
+                               default_max_workplaces INTEGER,
+                               created_at             TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+------------------------------------------------------------
+-- TENANT LICENSES
+------------------------------------------------------------
+CREATE TABLE tenant_licenses (
+                                 id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                                 uuid              TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                                 tenant_id         INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                                 license_plan_id   INTEGER REFERENCES license_plans(id),
+                                 max_devices       INTEGER,
+                                 max_monitors      INTEGER,
+                                 max_workplaces    INTEGER,
+                                 valid_from        DATE NOT NULL,
+                                 valid_to          DATE,
+                                 is_active         BOOLEAN NOT NULL DEFAULT TRUE,
+                                 created_at        TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                 updated_at        TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+------------------------------------------------------------
+-- WORKPLACES
+------------------------------------------------------------
+CREATE TABLE workplaces (
+                            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                            uuid        TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                            tenant_id   INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                            name        TEXT NOT NULL,
+                            created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+------------------------------------------------------------
+-- GROUPS
+------------------------------------------------------------
+CREATE TABLE groups (
+                        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                        uuid         TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                        workplace_id INTEGER NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
+                        name         TEXT NOT NULL,
+                        created_at   TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+------------------------------------------------------------
+-- USERS
+------------------------------------------------------------
+CREATE TABLE users (
+                       id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                       uuid          TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                       tenant_id     INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                       email         TEXT NOT NULL COLLATE NOCASE,
+                       password_hash TEXT,
+                       display_name  TEXT,
+                       is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+                       created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                       updated_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX ux_users_tenant_email
+    ON users (tenant_id, email);
+
+------------------------------------------------------------
+-- USER IDENTITY PROVIDERS (Google, Apple, etc.)
+------------------------------------------------------------
+CREATE TABLE user_identity_providers (
+                                         id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                                         uuid              TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                                         user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                         provider          TEXT NOT NULL,
+                                         provider_user_id  TEXT NOT NULL,
+                                         created_at        TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                         UNIQUE (provider, provider_user_id)
+);
+
+------------------------------------------------------------
+-- ROLES
+------------------------------------------------------------
+CREATE TABLE roles (
+                       id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                       uuid TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                       name TEXT NOT NULL UNIQUE
+);
+
+------------------------------------------------------------
+-- USER ROLES
+------------------------------------------------------------
+CREATE TABLE user_roles (
+                            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                            role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+                            PRIMARY KEY (user_id, role_id)
+);
+
+------------------------------------------------------------
+-- DEVICES
+------------------------------------------------------------
+CREATE TABLE devices (
+                         id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                         uuid          TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                         tenant_id     INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                         workplace_id  INTEGER REFERENCES workplaces(id),
+                         group_id      INTEGER REFERENCES groups(id),                    -- Should be NOT NULL after registration
+                         name          TEXT NOT NULL,
+                         serial_number TEXT,
+                         status        TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE', 'RETIRED')),
+                         is_deleted    BOOLEAN NOT NULL DEFAULT FALSE,
+                         created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                         updated_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+------------------------------------------------------------
+-- DEVICE CREDENTIALS
+------------------------------------------------------------
+CREATE TABLE device_credentials (
+                                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    uuid         TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                                    device_id    INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+                                    auth_type    TEXT NOT NULL CHECK (auth_type IN ('SHARED_SECRET', 'PUBLIC_KEY')),
+                                    secret_hash  TEXT,
+                                    public_key   TEXT,
+                                    created_at   TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                    revoked_at   TEXT
+);
+
+------------------------------------------------------------
+-- DEVICE REGISTRATION TOKENS
+------------------------------------------------------------
+CREATE TABLE device_registration_tokens (
+                                            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                                            uuid                 TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                                            tenant_id            INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                                            workplace_id         INTEGER REFERENCES workplaces(id),
+                                            group_id             INTEGER REFERENCES groups(id),
+                                            token                TEXT NOT NULL UNIQUE,
+                                            expires_at           TEXT NOT NULL,
+                                            used_at              TEXT,
+                                            created_by_user_id   INTEGER NOT NULL REFERENCES users(id),
+                                            created_at           TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                            device_id            INTEGER REFERENCES devices(id)
+);
+
+------------------------------------------------------------
+-- MONITOR PERMISSIONS
+------------------------------------------------------------
+CREATE TABLE monitor_workplaces (
+                                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    uuid          TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                                    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                    workplace_id  INTEGER NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
+                                    UNIQUE (user_id, workplace_id)
+);
+
+CREATE TABLE monitor_groups (
+                                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                                uuid     TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                                user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+                                UNIQUE (user_id, group_id)
+);
+
+------------------------------------------------------------
+-- ALERTS (Improved)
+------------------------------------------------------------
+CREATE TABLE alerts (
+                        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                        uuid                 TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                        tenant_id            INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                        group_id             INTEGER REFERENCES groups(id),                    -- IMPORTANT for broadcasting
+                        device_id            INTEGER REFERENCES devices(id),
+                        started_by_user_id   INTEGER REFERENCES users(id),
+                        correlation_id       TEXT NOT NULL,
+                        status               TEXT NOT NULL CHECK (status IN ('STARTED', 'STOPPED')),
+                        location             TEXT NOT NULL,
+                        person               TEXT NOT NULL,
+                        alert_owner          TEXT NOT NULL,
+                        message              TEXT NOT NULL,
+                        started_at           TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        stopped_at           TEXT,
+                        acknowledged_by      INTEGER REFERENCES users(id),
+                        acknowledged_at      TEXT
+);
+
+CREATE INDEX idx_alerts_group_started ON alerts(group_id, started_at);
+CREATE INDEX idx_alerts_tenant_device ON alerts(tenant_id, device_id);
+CREATE INDEX idx_alerts_correlation ON alerts(correlation_id);
+
+------------------------------------------------------------
+-- ALERT MESSAGES
+------------------------------------------------------------
+CREATE TABLE alert_messages (
+                                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                                uuid              TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+                                alert_id          INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+                                sender_user_id    INTEGER REFERENCES users(id),
+                                sender_device_id  INTEGER REFERENCES devices(id),
+                                message_type      TEXT NOT NULL,
+                                payload           TEXT NOT NULL,           -- JSON as text
+                                created_at        TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_alert_messages_alert ON alert_messages(alert_id);
+
+
+
+
+
+
+
+
+-- =============================================
+-- TEST DATA FOR SAFETY ALERT SYSTEM
+-- =============================================
+
+-- 1. TENANTS
+INSERT INTO tenants (name) VALUES
+                               ('City General Hospital'),
+                               ('Riverside Medical Center'),
+                               ('Northside Clinic');
+
+-- 2. LICENSE PLANS
+INSERT INTO license_plans (name, description, default_max_devices, default_max_monitors, default_max_workplaces) VALUES
+                                                                                                                     ('Basic', 'Small clinic - limited devices', 15, 5, 3),
+                                                                                                                     ('Standard', 'Medium hospital ward', 50, 15, 8),
+                                                                                                                     ('Enterprise', 'Full hospital deployment', 200, 50, 30);
+
+-- 3. TENANT LICENSES
+INSERT INTO tenant_licenses (tenant_id, license_plan_id, max_devices, max_monitors, max_workplaces, valid_from, valid_to, is_active) VALUES
+                                                                                                                                         (1, 3, 180, 45, 25, '2025-01-01', '2026-12-31', TRUE),   -- City General - Enterprise
+                                                                                                                                         (2, 2, 45, 12, 6,  '2025-03-01', '2026-02-28', TRUE),     -- Riverside - Standard
+                                                                                                                                         (3, 1, 12, 4, 2,   '2025-02-01', '2025-12-31', TRUE);     -- Northside - Basic
+
+-- 4. WORKPLACES
+INSERT INTO workplaces (tenant_id, name) VALUES
+                                             (1, 'Emergency Department'),
+                                             (1, 'General Ward'),
+                                             (1, 'Theatre Block'),
+                                             (2, 'Main Building'),
+                                             (3, 'Outpatient Clinic');
+
+-- 5. GROUPS
+INSERT INTO groups (workplace_id, name) VALUES
+                                            (1, 'Resus Bay'),           -- Emergency
+                                            (1, 'Triage Area'),
+                                            (2, 'Ward 3 North'),
+                                            (2, 'Ward 3 South'),
+                                            (3, 'Operating Room 1'),
+                                            (5, 'Consultation Rooms');
+
+-- 6. ROLES
+INSERT INTO roles (name) VALUES
+                             ('DEVICE'),
+                             ('MONITOR'),
+                             ('ADMIN'),
+                             ('SUPPORT');
+
+-- 7. USERS
+INSERT INTO users (tenant_id, email, display_name, is_active) VALUES
+                                                                  (1, 'admin@citygen.com', 'System Admin', TRUE),
+                                                                  (1, 'security@citygen.com', 'Hospital Security', TRUE),
+                                                                  (1, 'nurse.ed@citygen.com', 'ED Head Nurse', TRUE),
+                                                                  (2, 'monitor@riverside.com', 'Riverside Monitor', TRUE),
+                                                                  (3, 'clinic.manager@northside.com', 'Clinic Manager', TRUE);
+
+-- 8. USER ROLES
+INSERT INTO user_roles (user_id, role_id)
+SELECT u.id, r.id
+FROM users u, roles r
+WHERE (u.email = 'admin@citygen.com' AND r.name = 'ADMIN')
+   OR (u.email = 'security@citygen.com' AND r.name = 'MONITOR')
+   OR (u.email = 'nurse.ed@citygen.com' AND r.name = 'MONITOR')
+   OR (u.email = 'monitor@riverside.com' AND r.name = 'MONITOR')
+   OR (u.email = 'clinic.manager@northside.com' AND r.name = 'MONITOR');
+
+-- 9. DEVICES
+INSERT INTO devices (tenant_id, workplace_id, group_id, name, serial_number, status) VALUES
+                                                                                         (1, 1, 1, 'Resus Panic Button 01', 'CGH-ED-R01', 'ACTIVE'),
+                                                                                         (1, 1, 1, 'Resus Panic Button 02', 'CGH-ED-R02', 'ACTIVE'),
+                                                                                         (1, 1, 2, 'Triage Panic Button', 'CGH-ED-T01', 'ACTIVE'),
+                                                                                         (1, 2, 3, 'Ward 3N Button A', 'CGH-W3N-A1', 'ACTIVE'),
+                                                                                         (2, 4, NULL, 'Main Entrance Device', 'RMC-MAIN-01', 'ACTIVE');
+
+-- 10. MONITOR PERMISSIONS
+INSERT INTO monitor_workplaces (user_id, workplace_id) VALUES
+                                                           (2, 1),  -- Security can monitor Emergency Dept
+                                                           (3, 1),  -- ED Nurse can monitor Emergency
+                                                           (4, 4);  -- Riverside monitor
+
+INSERT INTO monitor_groups (user_id, group_id) VALUES
+    (3, 1);  -- ED Nurse can also monitor Resus Bay specifically
+
+-- 11. ALERTS (Sample Active + Historical)
+INSERT INTO alerts (tenant_id, group_id, device_id, started_by_user_id, correlation_id, status, location, person, alert_owner, message, started_at) VALUES
+                                                                                                                                                        (1, 1, 1, NULL, 'corr-001', 'STARTED', 'Resus Bay Bed 2', 'John Smith', 'DEV-Resus-01', 'Patient in distress - immediate help needed', '2026-05-16 00:10:00'),
+                                                                                                                                                        (1, 2, 3, NULL, 'corr-002', 'STARTED', 'Triage Area', 'Maria Garcia', 'DEV-Triage-01', 'Aggressive patient situation', '2026-05-16 00:15:00'),
+                                                                                                                                                        (1, 3, 4, NULL, 'corr-003', 'STOPPED', 'Ward 3 North', 'Robert Chen', 'DEV-W3N-A1', 'Fall risk - assistance required', '2026-05-15 23:45:00', '2026-05-15 23:52:00');
+
+-- 12. ALERT MESSAGES
+INSERT INTO alert_messages (alert_id, sender_device_id, message_type, payload) VALUES
+                                                                                   (1, 1, 'ALERT_START', '{"location":"Resus Bay Bed 2","person":"John Smith","severity":"HIGH"}'),
+                                                                                   (2, 3, 'ALERT_START', '{"location":"Triage Area","person":"Maria Garcia","severity":"MEDIUM"}');
+
+-- =============================================
+-- FINAL CHECK
+-- =============================================
+SELECT '=== TEST DATA LOADED SUCCESSFULLY ===' as message;
+
+-- Useful queries for testing:
+-- SELECT * FROM tenants;
+-- SELECT * FROM devices d JOIN groups g ON d.group_id = g.id;
+-- SELECT * FROM alerts WHERE status = 'STARTED';
