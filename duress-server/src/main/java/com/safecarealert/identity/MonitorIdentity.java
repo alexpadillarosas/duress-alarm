@@ -19,6 +19,7 @@ public final class MonitorIdentity implements IdentityRecord {
         this.tenantUUID = tenantUUID;
         this.roles = roles;
         this.allowedWorkplaces = allowedWorkplaces;
+
     }
 
     @Override
@@ -26,6 +27,16 @@ public final class MonitorIdentity implements IdentityRecord {
 
     @Override
     public String tenantUUID() { return tenantUUID; }
+
+    @Override
+    public String workplaceUUID() {
+        return "";
+    }
+
+    @Override
+    public String groupUUID() {
+        return "";
+    }
 
     @Override
     public Set<String> roles() { return roles; }
@@ -38,6 +49,8 @@ public final class MonitorIdentity implements IdentityRecord {
     public Set<String> allowedWorkplaces() {
         return allowedWorkplaces;
     }
+
+
 
     /**
      * Safely extracts the workplace list from the JWT claim,

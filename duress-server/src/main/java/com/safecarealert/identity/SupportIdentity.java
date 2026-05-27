@@ -18,6 +18,17 @@ public final class SupportIdentity implements IdentityRecord {
     public String subjectUUID() { return subjectUUID; }
     @Override
     public String tenantUUID() { return tenantUUID; }
+
+    @Override
+    public String workplaceUUID() {
+        return "";
+    }
+
+    @Override
+    public String groupUUID() {
+        return "";
+    }
+
     @Override
     public Set<String> roles() { return roles; }
     @Override

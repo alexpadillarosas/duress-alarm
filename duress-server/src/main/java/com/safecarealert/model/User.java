@@ -1,20 +1,13 @@
 package com.safecarealert.model;
 
-
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "user")
@@ -22,12 +15,13 @@ public class User extends PanacheEntityBase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     public Long id;
+
+    @Column(name = "uuid", nullable = false, unique = true)
+    public String uuid;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
     public Tenant tenant;
 
     @Column(name = "username", nullable = false, unique = true)
@@ -54,4 +48,37 @@ public class User extends PanacheEntityBase {
 
     @Column(name = "created_by", nullable = false)
     public String createdBy;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    public LocalDateTime updatedAt;
+
+    @Column(name = "updated_by")
+    public String updatedBy;
+
+    // Relationship with roles
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "user_role",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Column(name = "role")
+    public Set<String> roles = new HashSet<>();
+
+    // Helper methods
+    public boolean hasRole(String roleName) {
+        return roles.stream().anyMatch(r -> r.equalsIgnoreCase(roleName));
+    }
+
+    public boolean isMonitor() {
+        return hasRole("MONITOR");
+    }
+
+    public boolean isAdmin() {
+        return hasRole("ADMIN");
+    }
+
+    public boolean isSupport() {
+        return hasRole("SUPPORT");
+    }
 }

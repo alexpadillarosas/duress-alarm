@@ -130,3 +130,52 @@ INSERT INTO alert_actions (tenant_id, alert_id, type, payload, notes, created_by
 VALUES
     (2, 3, 'TRIGGERED', '{}', 'Test initiated', 'admin'),
     (2, 3, 'RESOLVED', '{}', 'Test completed successfully - All systems working', 'admin');
+
+-- =============================================
+-- USERS
+-- =============================================
+
+INSERT INTO user (uuid, tenant_id, username, email, first_name, last_name, phone, status, created_by)
+VALUES
+    -- ADMIN
+    ('usr-admin-01', 1, 'admin.acme', 'admin@acmecorp.com', 'Robert', 'Chen', '+61 400 111 222', 'ACTIVE', 'system'),
+
+    -- MONITOR
+    ('usr-mon-01', 1, 'monitor.sydney', 'monitor.sydney@acmecorp.com', 'Sarah', 'Williams', '+61 411 222 333', 'ACTIVE', 'system'),
+
+    -- SUPPORT
+    ('usr-supp-01', 1, 'support.tech', 'support@acmecorp.com', 'Michael', 'Patel', '+61 422 333 444', 'ACTIVE', 'system'),
+
+    -- DEVICE (technical user for testing)
+    ('usr-dev-01', 1, 'device.engineering', 'device.engineering@acmecorp.com', 'Engineering', 'Robot', NULL, 'ACTIVE', 'system'),
+
+    -- MONITOR + SUPPORT (combined role user)
+    ('usr-mon-supp-01', 1, 'operator.lead', 'operator.lead@acmecorp.com', 'Emma', 'Thompson', '+61 433 444 555', 'ACTIVE', 'system'),
+
+    -- Another MONITOR under Beta Solutions
+    ('usr-mon-02', 2, 'monitor.beta', 'monitor@betasolutions.com.au', 'James', 'Olsen', '+61 455 666 777', 'ACTIVE', 'system');
+
+
+-- =============================================
+-- USER ROLES (Junction Table)
+-- =============================================
+
+INSERT INTO user_role (user_id, role) VALUES
+                                          -- ADMIN
+                                          (1, 'ADMIN'),
+
+                                          -- MONITOR
+                                          (2, 'MONITOR'),
+
+                                          -- SUPPORT
+                                          (3, 'SUPPORT'),
+
+                                          -- DEVICE
+                                          (4, 'DEVICE'),
+
+                                          -- MONITOR + SUPPORT (combined)
+                                          (5, 'MONITOR'),
+                                          (5, 'SUPPORT'),
+
+                                          -- Another MONITOR
+                                          (6, 'MONITOR');

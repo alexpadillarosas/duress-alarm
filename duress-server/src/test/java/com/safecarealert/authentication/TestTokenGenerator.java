@@ -61,6 +61,7 @@ public class TestTokenGenerator {
 
         if (rec instanceof MonitorIdentity monitor) {
             log.debugf("Mapping MonitorIdentity claims for Monitor: %s", rec.subjectUUID());
+            //TODO: Monitor in tests were looking at a set of assigned places, and with that we check what the monitor requests, but this requires to store the allowed workplaces in the db, and currently we do not have a db table, and we have planned to allow all monitors to filter anything from a dashboard. the UI will pass the workplaces, groups that are available to the logged in user.
             jwt = jwt.claim(Claim.ALLOWED_WORKPLACES.name(), monitor.allowedWorkplaces());
         }
 

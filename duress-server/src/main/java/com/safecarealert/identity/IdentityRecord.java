@@ -13,8 +13,7 @@ import java.util.Set;
  * Instead, the augmentor converts IdentityRecord → Subject,
  * which is the unified identity model used throughout the system.
  */
-public sealed interface IdentityRecord
-        permits DeviceIdentity, MonitorIdentity, AdminIdentity, SupportIdentity {
+public sealed interface IdentityRecord permits DeviceIdentity, MonitorIdentity, AdminIdentity, SupportIdentity {
 
     /**
      * Unique identifier for the identity (device UUID, user UUID, etc.)
@@ -27,6 +26,9 @@ public sealed interface IdentityRecord
      */
     String tenantUUID();
 
+    String workplaceUUID();
+
+    String groupUUID();
     /**
      * Raw role names as stored in the identity registry.
      * These are converted to Role enums inside SubjectFactory.

@@ -19,6 +19,16 @@ public final class AdminIdentity implements IdentityRecord {
     public String tenantUUID() { return null; }
 
     @Override
+    public String workplaceUUID() {
+        return "";
+    }
+
+    @Override
+    public String groupUUID() {
+        return "";
+    }
+
+    @Override
     public Set<String> roles() { return roles; }
 
     @Override

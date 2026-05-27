@@ -116,6 +116,7 @@ CREATE INDEX idx_alert_actions_tenant ON alert_actions(tenant_id);
 
 CREATE TABLE user (
                       id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      uuid TEXT NOT NULL UNIQUE,
                       tenant_id INTEGER NOT NULL,
                       username TEXT NOT NULL UNIQUE,
                       email TEXT NOT NULL UNIQUE,
@@ -128,6 +129,14 @@ CREATE TABLE user (
                       FOREIGN KEY (tenant_id) REFERENCES tenant(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_users_tenant ON user(tenant_id);
+
+CREATE TABLE user_role (
+                           user_id INTEGER NOT NULL,
+                           role TEXT NOT NULL,
+                           PRIMARY KEY (user_id, role),
+                           FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
+                           CHECK (role IN ('DEVICE', 'MONITOR', 'ADMIN', 'SUPPORT'))
+);
 
 CREATE TABLE device_location_history (
                                          id INTEGER PRIMARY KEY AUTOINCREMENT,
