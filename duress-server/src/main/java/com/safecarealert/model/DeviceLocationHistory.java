@@ -1,5 +1,7 @@
 package com.safecarealert.model;
 
+
+
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,48 +13,47 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "workplace")
-public class Workplace extends PanacheEntityBase {
+@Table(name = "device_location_history")
+public class DeviceLocationHistory extends PanacheEntityBase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     public Long id;
 
-    @Column(name = "uuid", nullable = false, unique = true)
-    public String uuid;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "device_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    public Device device;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     public Tenant tenant;
 
-    @Column(name = "name", nullable = false)
-    public String name;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "workplace_id", nullable = false)
+    public Workplace workplace;
 
-    @Column(name = "address")
-    public String address;
-
-    @Column(name = "status", nullable = false)
-    public String status; // ACTIVE, INACTIVE, UNDER_MAINTENANCE, SUSPENDED, ARCHIVED
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id", nullable = false)
+    public Groups group;
 
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    public LocalDateTime createdAt;
+    @Column(name = "assigned_at", updatable = false, nullable = false)
+    public LocalDateTime assignedAt;
 
-    @Column(name = "created_by", nullable = false)
-    public String createdBy;
+    @Column(name = "unassigned_at")
+    public LocalDateTime unassignedAt; // NULL means this is the currently active location
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    public LocalDateTime updatedAt;
+    @Column(name = "assigned_by", nullable = false)
+    public String assignedBy;
 
-    @Column(name = "updated_by", nullable = false)
-    public String updatedBy;
+    @Column(name = "notes")
+    public String notes;
 }

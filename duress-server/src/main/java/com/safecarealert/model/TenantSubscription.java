@@ -12,13 +12,14 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user")
-public class User extends PanacheEntityBase {
+@Table(name = "tenant_subscription")
+public class TenantSubscription extends PanacheEntityBase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,23 +31,24 @@ public class User extends PanacheEntityBase {
     @OnDelete(action = OnDeleteAction.CASCADE)
     public Tenant tenant;
 
-    @Column(name = "username", nullable = false, unique = true)
-    public String username;
-
-    @Column(name = "email", nullable = false, unique = true)
-    public String email;
-
-    @Column(name = "first_name")
-    public String firstName;
-
-    @Column(name = "last_name")
-    public String lastName;
-
-    @Column(name = "phone")
-    public String phone;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id", nullable = false)
+    public SubscriptionPlan plan;
 
     @Column(name = "status", nullable = false)
-    public String status;
+    public String status = "ACTIVE"; // ACTIVE, TRIAL, PAST_DUE, CANCELLED, EXPIRED, SUSPENDED
+
+    @Column(name = "starts_at", nullable = false)
+    public LocalDateTime startsAt;
+
+    @Column(name = "ends_at")
+    public LocalDateTime endsAt;
+
+    @Column(name = "auto_renew", nullable = false)
+    public Boolean autoRenew = true;
+
+    @Column(name = "cancelled_at")
+    public LocalDateTime cancelledAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -54,4 +56,11 @@ public class User extends PanacheEntityBase {
 
     @Column(name = "created_by", nullable = false)
     public String createdBy;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    public LocalDateTime updatedAt;
+
+    @Column(name = "updated_by", nullable = false)
+    public String updatedBy;
 }

@@ -1,64 +1,67 @@
 package com.safecarealert.model;
 
-import jakarta.persistence.*;
+
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "alerts")
-public class Alert extends AuditableEntity {
+@Table(name = "alert")
+public class Alert extends PanacheEntityBase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     public Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
-    public Tenant tenant;
+    @Column(name = "uuid", nullable = false, unique = true)
+    public String uuid;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "device_id")
+    @JoinColumn(name = "device_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     public Device device;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "group_id")
-    public Group group;
+    @JoinColumn(name = "tenant_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    public Tenant tenant;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "started_by_user_id")
-    public User startedByUser;
-
-    @Column(name = "correlation_id", unique = true, length = 100)
-    public String correlationId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    public AlertStatus status;
-
-    public String location;
-    public String person;
-
-    @Column(length = 500)
+    @Column(name = "message", nullable = false)
     public String message;
 
-    @Column(name = "started_at")
-    public LocalDateTime startedAt;
+    @Column(name = "status", nullable = false)
+    public String status = "TRIGGERED"; // TRIGGERED, ACKNOWLEDGED, RESOLVED, FALSE_ALARM, CANCELLED
 
-    // === Acknowledgment Fields ===
-    @Column(name = "acknowledged_at")
-    public LocalDateTime acknowledgedAt;
+    @Column(name = "severity", nullable = false)
+    public String severity = "CRITICAL";
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "acknowledged_by_id")
-    public User acknowledgedBy;
+    @Column(name = "is_test", nullable = false)
+    public Boolean isTest = false;
 
-    // === Resolution Fields ===
-    @Column(name = "resolved_at")
-    public LocalDateTime resolvedAt;
+    @Column(name = "test_reason")
+    public String testReason;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "resolved_by_id")
-    public User resolvedBy;
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    public LocalDateTime createdAt;
 
-    @Column(name = "resolution_note", length = 500)
-    public String resolutionNote;
+    @Column(name = "created_by")
+    public String createdBy;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    public LocalDateTime updatedAt;
 }

@@ -17,8 +17,8 @@ import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user")
-public class User extends PanacheEntityBase {
+@Table(name = "alert_actions")
+public class AlertActions extends PanacheEntityBase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,23 +30,19 @@ public class User extends PanacheEntityBase {
     @OnDelete(action = OnDeleteAction.CASCADE)
     public Tenant tenant;
 
-    @Column(name = "username", nullable = false, unique = true)
-    public String username;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "alert_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    public Alert alert;
 
-    @Column(name = "email", nullable = false, unique = true)
-    public String email;
+    @Column(name = "type", nullable = false)
+    public String type; // TRIGGERED, ACKNOWLEDGED, FALSE_ALARM, RESOLVED
 
-    @Column(name = "first_name")
-    public String firstName;
+    @Column(name = "payload", nullable = false)
+    public String payload;
 
-    @Column(name = "last_name")
-    public String lastName;
-
-    @Column(name = "phone")
-    public String phone;
-
-    @Column(name = "status", nullable = false)
-    public String status;
+    @Column(name = "notes")
+    public String notes;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
