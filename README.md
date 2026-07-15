@@ -1,6 +1,6 @@
 # Safety Platform Management System
 
-The orinal project was build under https://github.com/alexpadillarosas/safety-alert but redesigned and moved here.
+The orinal project was built under **https://github.com/alexpadillarosas/safety-alert** but redesigned and moved here.
 
 A high-performance, resilient multi-module safety infrastructure engineered with Quarkus 3.35.3 and Java 25.
 
