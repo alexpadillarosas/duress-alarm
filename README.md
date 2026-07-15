@@ -1,4 +1,6 @@
-# Duress Alarm Management System
+# Safety Platform Management System
+
+The orinal project was build under https://github.com/alexpadillarosas/safety-alert but redesigned and moved here.
 
 A high-performance, resilient multi-module safety infrastructure engineered with Quarkus 3.35.3 and Java 25.
 
@@ -6,7 +8,7 @@ This project isolates cross-cutting telemetry data models from specific deployme
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 The project is structured as a decoupled Maven Reactor multi-module ecosystem:
 
@@ -20,7 +22,7 @@ safety-alert/
 
 ---
 
-## 🛠️ Global Validation Check
+##  Global Validation Check
 
 Before spinning up individual services, validate the integrity of cross-module injection schemas by running a baseline compile check from the system root directory:
 
